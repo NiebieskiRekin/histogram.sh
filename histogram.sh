@@ -8,7 +8,6 @@
 # pdftotext
 # ps2pdf
 
-# TODO: remove unprintable symbols from text 
 # TODO: further testing
 
 # ---------------------------------------------------------------------------------------------------
@@ -28,8 +27,8 @@ force_overwrite=false
 function count_words {
   for word in $@
   do
-    # clear whitespace, numbers and punctuation, make all letters lowercase
-    token=$(echo "$word" | tr '[:upper:]' '[:lower:]' | tr -d "[:punct:][:blank:][:digit:]")
+    # clear whitespace, numbers and punctuation, make all letters lowercase and also remove unprintable characters
+    token=$(echo "$word" | tr '[:upper:]' '[:lower:]' | tr -d "[:punct:][:blank:][:digit:]" | sed "s/[^[:print:]]//g")
     # increase count for the current word
     if [ "$token" != "" ]; then
       ((dictionary[$token]++))
@@ -40,7 +39,14 @@ function count_words {
 # deduces document type based on file extension
 function find_document_type {
   file=$1
-  extension="${file##*.}" 
+  filename=$(basename -- "$file")
+  extension="${filename##*.}"
+
+  if [ "$extension" = "$filename" ]; then
+    # file doesn't have extension
+    extension=""
+  fi
+  
   if [ "$extension" = "pdf" ] || [ "$extension" = "ps" ] || [ "$extension" = "txt" ]; then
     document_type=$extension
   elif [ "$extension" = "" ]; then # files without extension are treated as plaintext
@@ -174,10 +180,9 @@ done
 
 
 
-
 # check if output file is empty, warn if it's not, and ask the user if we wants to overwrite file
 touch "$output" # create file if it doesn't exist 
-if [ $force_overwrite = "false" ] && [ "$(cat $output)" != "" ]; then   # if file is not empty
+if [ $has_output_file = true ]  &&  [ $force_overwrite = "false" ] && [ "$(cat $output)" != "" ]; then   # if file is not empty
   echo 2>&1 "Output file '$output' is not empty."
   read -p "Do you want to overwrite the file? " -n 1 -r # ask user what to do
   echo ""
@@ -188,6 +193,7 @@ if [ $force_overwrite = "false" ] && [ "$(cat $output)" != "" ]; then   # if fil
   fi
   echo "" > "$output" # clear file
 fi
+
 
 
 if [ $csv = true ]; then
