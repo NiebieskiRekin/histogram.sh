@@ -8,8 +8,6 @@
 # pdftotext
 # ps2pdf
 
-# TODO: further testing
-
 # ---------------------------------------------------------------------------------------------------
 
 # GLOBAL VARIABLES
@@ -112,7 +110,6 @@ function retrieve_text {
 }
 
  
-
 function print_help {
   echo "histogram.sh"
   echo "Simple word counter that can read text from multiple .txt, .pdf or .ps files, and export to .csv or plaintext."
@@ -130,13 +127,34 @@ function print_help {
   exit 0
 }
 
+# check if output file is empty, warn if it's not, and ask the user if we wants to overwrite file
+function check_output_file {
+  filename=$(basename "$1")
+  directory=$(dirname "$1")
+  mkdir -p "$directory"
+  touch "$output"
+  # create file if it doesn't exist 
+  if [ $force_overwrite = "false" ] && [ "$(head $output)" != "" ]; then   # if file is not empty
+    echo 2>&1 "Output file '$output' is not empty."
+    read -p "Do you want to overwrite the file? " -n 1 -r # ask user what to do
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]] # if first character of the answer isn't y or Y then exit
+    then
+      echo 2>&1 "Exiting"
+      exit 1 
+    fi
+    echo "" > "$output" # clear file
+  fi
+}
+
 # Main driver 
 
+# No arguments given - incorrect input
 if [ $# -eq 0 ]; then
   print_help
 fi
 
-
+# parse switches and take input files/data
 for arg in $@
 do
   if [ "$arg" = "--help" ] || [ "$arg" = "-h" ]; then
@@ -149,8 +167,8 @@ do
     output="out.csv"
   elif [ $next_arg_csv_name = true ]; then # set filename for .csv output
     next_arg_csv_name=false
-    filename=${arg%%.*}
-    output="${filename}.csv"
+    output="$arg"
+    check_output_file "$arg"
   elif [ "$arg" = "--output" ] || [ "$arg" = "-o" ]; then
     has_output_file=true
     output="out.txt"
@@ -163,6 +181,7 @@ do
       output="${filename}.csv"
       csv=true
     fi
+    check_output_file "$output"
   elif [ "$arg" = "--raw-text" ] || [ "$arg" = "-r" ]; then
     raw_text=true
   elif [ "$raw_text" = true ]; then # directly count words in the input onwards
@@ -179,23 +198,7 @@ do
 done
 
 
-
-# check if output file is empty, warn if it's not, and ask the user if we wants to overwrite file
-touch "$output" # create file if it doesn't exist 
-if [ $has_output_file = true ]  &&  [ $force_overwrite = "false" ] && [ "$(cat $output)" != "" ]; then   # if file is not empty
-  echo 2>&1 "Output file '$output' is not empty."
-  read -p "Do you want to overwrite the file? " -n 1 -r # ask user what to do
-  echo ""
-  if [[ ! $REPLY =~ ^[Yy]$ ]] # if first character of the answer isn't y or Y then exit
-  then
-    echo 2>&1 "Exiting"
-    exit 1 
-  fi
-  echo "" > "$output" # clear file
-fi
-
-
-
+# Writing to file
 if [ $csv = true ]; then
   # csv output format
   for word in ${!dictionary[@]}
