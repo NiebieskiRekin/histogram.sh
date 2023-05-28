@@ -1,0 +1,9 @@
+# block everything by default
+*
+!*/
+
+# allow these only
+!.gitignore
+!LICENSE
+!README.md
+!histogram.sh
