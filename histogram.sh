@@ -8,6 +8,9 @@
 # pdftotext
 # ps2pdf
 
+# TODO: remove unprintable symbols from text 
+# TODO: further testing
+
 # ---------------------------------------------------------------------------------------------------
 
 # GLOBAL VARIABLES
@@ -37,7 +40,7 @@ function count_words {
 # deduces document type based on file extension
 function find_document_type {
   file=$1
-  extension=${file#*.} 
+  extension="${file##*.}" 
   if [ "$extension" = "pdf" ] || [ "$extension" = "ps" ] || [ "$extension" = "txt" ]; then
     document_type=$extension
   elif [ "$extension" = "" ]; then # files without extension are treated as plaintext
@@ -62,7 +65,8 @@ function retrieve_text {
   if [ "$document_type" = "txt" ]; then # plaintext
     text=$(cat "$file")
   elif [ "$document_type" = "ps" ]; then # postscript needs converting twice, requires: ps2pdf & pdftotext
-    filename=${file%%.*}
+    filename=$(basename -- "$file")
+    filename="${filename%.*}"
 
     # temporary directory to avoid name conflicts
     tmpdir=$(mktemp -d "/tmp/histogram.XXXXXXXXXXXX")
@@ -70,7 +74,7 @@ function retrieve_text {
 
     # convert ps to pdf, and then pdf to plaintext,
     # if any conversion script isn't available throws an exception 
-    ps2pdf "${filename}.ps" "${tmpdir}${filename}.pdf" || (echo "Error: ps2pdf not found" 1>&2 ; exit 11) 
+    ps2pdf "${file}" "${tmpdir}${filename}.pdf" || (echo "Error: ps2pdf not found" 1>&2 ; exit 11) 
     pdftotext "${tmpdir}${filename}.pdf" "${tmpdir}${filename}.txt" || (echo "Error: pdftotext not found" 1>&2 ; exit 12) 
 
     # read text from converted file
@@ -80,16 +84,17 @@ function retrieve_text {
     rm -r "$tmpdir"
         
   elif [ "$document_type" = "pdf" ]; then # pdf also requires conversion, pdftotext is necessary
-    filename=${file%%.*}
+    filename=$(basename "$file")
+    filename="${filename%.*}"
 
     # temporary directory to avoid name conflicts
     tmpdir=$(mktemp -d "/tmp/histogram.XXXXXXXXXXXX")
 
     # convert pdf to plaintext, 
-    pdftotext "${tmpdir}${filename}.pdf" "${tmpdir}${filename}.txt" || (echo "Error: pdftotext not found" 1>&2 ; exit 12) 
+    pdftotext "${file}" "${tmpdir}${filename}.txt" || (echo "Error: pdftotext not found" 1>&2 ; exit 12) 
 
     # read text from converted file
-    text=$(cat "${filename}.txt")
+    text=$(cat "${tmpdir}${filename}.txt")
 
     # remove temporary directory
     rm -r "$tmpdir"
@@ -121,6 +126,11 @@ function print_help {
 
 # Main driver 
 
+if [ $# -eq 0 ]; then
+  print_help
+fi
+
+
 for arg in $@
 do
   if [ "$arg" = "--help" ] || [ "$arg" = "-h" ]; then
@@ -149,9 +159,13 @@ do
     fi
   elif [ "$arg" = "--raw-text" ] || [ "$arg" = "-r" ]; then
     raw_text=true
-  elif [ "$raw_text" = true ]; then # directly count words in the input
+  elif [ "$raw_text" = true ]; then # directly count words in the input onwards
     count_words "$arg"
-  else      # if not a switch or its complement, then arg is considered an input file
+  elif [ "${arg:0:1}" = "-"  ]; then
+    echo "Unrecognized option $arg."
+    echo "See --help for more details."
+    exit 3
+  else      # if not a switch or its complement, then arg is considered to be an input file
     find_document_type "$arg"
     retrieve_text "$arg"
     count_words "$text"      
@@ -166,6 +180,7 @@ touch "$output" # create file if it doesn't exist
 if [ $force_overwrite = "false" ] && [ "$(cat $output)" != "" ]; then   # if file is not empty
   echo 2>&1 "Output file '$output' is not empty."
   read -p "Do you want to overwrite the file? " -n 1 -r # ask user what to do
+  echo ""
   if [[ ! $REPLY =~ ^[Yy]$ ]] # if first character of the answer isn't y or Y then exit
   then
     echo 2>&1 "Exiting"
