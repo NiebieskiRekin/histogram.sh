@@ -16,9 +16,9 @@
 
 
 ## FLAGS: 
-    -h, --help  Print help information"
-    --csv [FILENAME]  Write output to a .csv file (default: out.csv)"
-    -o, --output [FILENAME]  Specify output file (default: out.txt)"
-    -r, --raw-text \"[TEXT]\"  Take raw input as the text for analysis"
-    -f Overwrite output file (default: ask user)"
+    -h, --help                 Print help information
+    --csv [FILENAME]           Write output to a .csv file (default: out.csv)
+    -o, --output [FILENAME]    Specify output file (default: out.txt)
+    -r, --raw-text "[TEXT]"    Take raw input as the text for analysis
+    -f                         Overwrite output file (default: ask user)
 
